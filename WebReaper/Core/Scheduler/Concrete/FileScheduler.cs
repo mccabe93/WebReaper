@@ -17,8 +17,13 @@ public class FileScheduler : IScheduler
     public Task Initialization { get; }
 
     public bool DataCleanupOnStart { get; set; }
-    
-    public FileScheduler(string fileName, string currentJobPositionFileName, ILogger logger, bool dataCleanupOnStart = false)
+
+    public FileScheduler(
+        string fileName,
+        string currentJobPositionFileName,
+        ILogger logger,
+        bool dataCleanupOnStart = false
+    )
     {
         DataCleanupOnStart = dataCleanupOnStart;
         _fileName = fileName;
@@ -27,35 +32,39 @@ public class FileScheduler : IScheduler
 
         Initialization = InitializeAsync();
     }
-    
+
     private async Task InitializeAsync()
     {
         if (DataCleanupOnStart)
         {
-            if(File.Exists(_fileName)) File.Delete(_fileName);
-            if(File.Exists(_currentJobPositionFileName)) File.Delete(_currentJobPositionFileName);
+            if (File.Exists(_fileName))
+                File.Delete(_fileName);
+            if (File.Exists(_currentJobPositionFileName))
+                File.Delete(_currentJobPositionFileName);
         }
-        
+
         var fileInfo = new FileInfo(_fileName);
         fileInfo.Directory?.Create();
-        
+
         var fileInfo2 = new FileInfo(_currentJobPositionFileName);
         fileInfo2.Directory?.Create();
 
         if (File.Exists(_currentJobPositionFileName))
-            _currentJobPosition = int.Parse(await File.ReadAllTextAsync(_currentJobPositionFileName));
+            _currentJobPosition = int.Parse(
+                await File.ReadAllTextAsync(_currentJobPositionFileName)
+            );
     }
 
     public async IAsyncEnumerable<Job> GetAllAsync(
-        [EnumeratorCancellation] CancellationToken cancellationToken = default)
+        [EnumeratorCancellation] CancellationToken cancellationToken = default
+    )
     {
         _logger.LogInformation($"Start {nameof(FileScheduler)}.{nameof(GetAllAsync)}");
 
-        using var sr = new StreamReader(_fileName, new FileStreamOptions
-        {
-            Access = FileAccess.Read,
-            Share = FileShare.ReadWrite
-        });
+        using var sr = new StreamReader(
+            _fileName,
+            new FileStreamOptions { Access = FileAccess.Read, Share = FileShare.ReadWrite }
+        );
 
         for (var i = 0; i < _currentJobPosition; i++)
         {
@@ -85,7 +94,11 @@ public class FileScheduler : IScheduler
 
             _logger.LogInformation("Writing current job position to file");
 
-            await File.WriteAllTextAsync(_currentJobPositionFileName, $"{_currentJobPosition++}", cancellationToken);
+            await File.WriteAllTextAsync(
+                _currentJobPositionFileName,
+                $"{_currentJobPosition++}",
+                cancellationToken
+            );
 
             _logger.LogInformation("Deserializing the job and returning it to consumer");
 
@@ -101,7 +114,11 @@ public class FileScheduler : IScheduler
         await _semaphore.WaitAsync(cancellationToken);
         try
         {
-            await File.AppendAllTextAsync(_fileName, SerializeToJson(job) + Environment.NewLine, cancellationToken);
+            await File.AppendAllTextAsync(
+                _fileName,
+                SerializeToJson(job) + Environment.NewLine,
+                cancellationToken
+            );
         }
         finally
         {
@@ -111,7 +128,9 @@ public class FileScheduler : IScheduler
 
     public async Task AddAsync(IEnumerable<Job> jobs, CancellationToken cancellationToken = default)
     {
-        _logger.LogInformation($"Start {nameof(FileScheduler)}.{nameof(AddAsync)} with multiple jobs");
+        _logger.LogInformation(
+            $"Start {nameof(FileScheduler)}.{nameof(AddAsync)} with multiple jobs"
+        );
 
         var serializedJobs = jobs.Select(SerializeToJson);
 
@@ -129,5 +148,28 @@ public class FileScheduler : IScheduler
     private static string SerializeToJson(Job job)
     {
         return JsonConvert.SerializeObject(job, Formatting.None);
+    }
+
+    public async Task<bool> HasScheduledJobsAsync(CancellationToken cancellationToken = default)
+    {
+        if (_semaphore.CurrentCount == 0)
+        {
+            return true;
+        }
+        await _semaphore.WaitAsync(cancellationToken);
+        try
+        {
+            var fileInfo = new FileInfo(_fileName);
+            if (!fileInfo.Exists)
+            {
+                return false;
+            }
+            int lineCount = (await File.ReadAllLinesAsync(_fileName)).Length;
+            return lineCount > _currentJobPosition;
+        }
+        finally
+        {
+            _semaphore.Release();
+        }
     }
 }

@@ -7,8 +7,10 @@
     <Company>Alex Pavlov</Company>
     <Product>ExoScraper</Product>
     <PackageId>WebReaper.net</PackageId>
-    <Description>Declarative high performance web scraper in C#. Easily crawl any web site and parse the data, save structed result to a file, DB, etc.
-	.NET 10 fork</Description>
+    <Description>
+		Declarative high performance web scraper in C#. Easily crawl any web site and parse the data, save structed result to a file, DB, etc.
+		Dynamic Engine allows reuse of the scraper engine and allows for stopping the engine and assessing if it has any remaining work to do.
+		.NET 10 fork.</Description>
     <Copyright>GPL-3.0 license</Copyright>
     <PackageProjectUrl>https://github.com/mccabe93/WebReaper/tree/dotnet10</PackageProjectUrl>
     <PackageIcon>logo.png</PackageIcon>
@@ -16,7 +18,7 @@
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <PackageTags>scraper, crawler, parser</PackageTags>
     <PackageLicenseExpression>GPL-3.0-or-later</PackageLicenseExpression>
-    <Version>3.5.4</Version>
+    <Version>3.5.6-DynamicEngine</Version>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <DocumentationFile>$(MSBuildProjectDirectory)\API.xml</DocumentationFile>
     <LangVersion>12</LangVersion>

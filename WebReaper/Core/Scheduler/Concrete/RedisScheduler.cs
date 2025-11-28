@@ -13,18 +13,24 @@ public class RedisScheduler : RedisBase, IScheduler
     private readonly string _queueName;
 
     public bool DataCleanupOnStart { get; set; }
-    
+
     public Task Initialization { get; }
-    
-    public RedisScheduler(string connectionString, string queueName, ILogger logger, bool dataCleanupOnStart = false) : base(connectionString)
+
+    public RedisScheduler(
+        string connectionString,
+        string queueName,
+        ILogger logger,
+        bool dataCleanupOnStart = false
+    )
+        : base(connectionString)
     {
         DataCleanupOnStart = dataCleanupOnStart;
         _queueName = queueName;
         _logger = logger;
-        
+
         Initialization = InitializeAsync();
     }
-    
+
     private async Task InitializeAsync()
     {
         if (!DataCleanupOnStart)
@@ -36,9 +42,14 @@ public class RedisScheduler : RedisBase, IScheduler
     }
 
     public async IAsyncEnumerable<Job> GetAllAsync(
-        [EnumeratorCancellation] CancellationToken cancellationToken = default)
+        [EnumeratorCancellation] CancellationToken cancellationToken = default
+    )
     {
-        _logger.LogInformation("Start {class}.{method}", nameof(RedisScheduler), nameof(GetAllAsync));
+        _logger.LogInformation(
+            "Start {class}.{method}",
+            nameof(RedisScheduler),
+            nameof(GetAllAsync)
+        );
 
         var db = Redis.GetDatabase();
 
@@ -68,7 +79,12 @@ public class RedisScheduler : RedisBase, IScheduler
 
     public async Task AddAsync(IEnumerable<Job> jobs, CancellationToken cancellationToken = default)
     {
-        _logger.LogInformation("Start {class}.{method} with {count} jobs", nameof(RedisScheduler), nameof(AddAsync), jobs.Count());
+        _logger.LogInformation(
+            "Start {class}.{method} with {count} jobs",
+            nameof(RedisScheduler),
+            nameof(AddAsync),
+            jobs.Count()
+        );
 
         var db = Redis!.GetDatabase();
 
@@ -76,5 +92,17 @@ public class RedisScheduler : RedisBase, IScheduler
         {
             await db.ListRightPushAsync(_queueName, SerializeToJson(job));
         }
+    }
+
+    public async Task<bool> HasScheduledJobsAsync(CancellationToken cancellationToken = default)
+    {
+        _logger.LogInformation(
+            "Start {class}.{method}",
+            nameof(RedisScheduler),
+            nameof(HasScheduledJobsAsync)
+        );
+        var db = Redis.GetDatabase();
+        var length = await db.ListLengthAsync(_queueName);
+        return length > 0;
     }
 }

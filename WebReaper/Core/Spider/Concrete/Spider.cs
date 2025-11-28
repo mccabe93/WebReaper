@@ -25,7 +25,8 @@ public class Spider : ISpider
         IStaticPageLoader staticPageLoader,
         IBrowserPageLoader dynamicPageLoader,
         IScraperConfigStorage configStorage,
-        ILogger logger)
+        ILogger logger
+    )
     {
         Sinks = sinks;
         LinkParser = linkParser;
@@ -53,10 +54,11 @@ public class Spider : ISpider
     public async Task<List<Job>> CrawlAsync(Job job, CancellationToken cancellationToken = default)
     {
         await LinkTracker.Initialization;
-        
+
         var config = await ScraperConfigStorage.GetConfigAsync();
 
-        if (config.UrlBlackList.Contains(job.Url)) return Enumerable.Empty<Job>().ToList();
+        if (config.UrlBlackList.Contains(job.Url))
+            return Enumerable.Empty<Job>().ToList();
 
         await CheckCrawlLimit(config);
 
@@ -66,13 +68,13 @@ public class Spider : ISpider
         {
             PageType.Static => await LoadStaticPage(job),
             PageType.Dynamic => await LoadDynamicPage(job, config.Headless),
-            _ => throw new NotImplementedException()
+            _ => throw new NotImplementedException(),
         };
-        
+
         if (job.PageCategory == PageCategory.TargetPage)
         {
             await ProcessTargetPage(job, doc, cancellationToken);
-            
+
             await CheckCrawlLimit(config);
 
             return Enumerable.Empty<Job>().ToList();
@@ -86,16 +88,24 @@ public class Spider : ISpider
 
         var rawLinks = await LinkParser.GetLinksAsync(baseUrl, doc, currentSelector.Selector);
 
-        var links = rawLinks
-            .Except(await LinkTracker.GetVisitedLinksAsync());
+        var links = rawLinks.Except(await LinkTracker.GetVisitedLinksAsync());
 
         var newJobs = new List<Job>();
 
-        newJobs.AddRange(CreateNextJobs(job, currentSelector, newLinkPathSelectors, links, cancellationToken));
+        newJobs.AddRange(
+            CreateNextJobs(job, currentSelector, newLinkPathSelectors, links, cancellationToken)
+        );
 
-        if (job.PageCategory != PageCategory.PageWithPagination) return newJobs;
+        if (job.PageCategory != PageCategory.PageWithPagination)
+            return newJobs;
 
-        var nextJobs = await CreateJobsForPagesWithPagination(job, currentSelector, baseUrl, doc, cancellationToken);
+        var nextJobs = await CreateJobsForPagesWithPagination(
+            job,
+            currentSelector,
+            baseUrl,
+            doc,
+            cancellationToken
+        );
 
         newJobs.AddRange(nextJobs);
 
@@ -110,7 +120,7 @@ public class Spider : ISpider
 
             throw new PageCrawlLimitException("Page crawl limit has been reached.")
             {
-                PageCrawlLimit = config.PageCrawlLimit
+                PageCrawlLimit = config.PageCrawlLimit,
             };
         }
     }
@@ -119,7 +129,11 @@ public class Spider : ISpider
 
     public event Func<Metadata, JObject, Task>? PostProcessor;
 
-    private async Task ProcessTargetPage(Job job, string doc, CancellationToken cancellationToken = default)
+    private async Task ProcessTargetPage(
+        Job job,
+        string doc,
+        CancellationToken cancellationToken = default
+    )
     {
         Logger.LogInvocationCount();
 
@@ -130,12 +144,15 @@ public class Spider : ISpider
         var result = new ParsedData(job.Url, rowResult);
 
         if (PostProcessor is not null)
-            await PostProcessor.Invoke(new Metadata(job.ParentBacklinks.ToList(), job.Url, doc), result.Data);
+            await PostProcessor.Invoke(
+                new Metadata(job.ParentBacklinks.ToList(), job.Url, doc),
+                result.Data
+            );
 
         ScrapedData?.Invoke(result);
 
         Logger.LogInformation("Sending scraped data to sinks...");
-        var sinkTasks = Sinks.Select(sink => sink.EmitAsync(result, cancellationToken));
+        var sinkTasks = Sinks.Select(async sink => await sink.EmitAsync(result, cancellationToken));
 
         Logger.LogInformation("Waiting for sinks ...");
         await Task.WhenAll(sinkTasks);
@@ -161,23 +178,37 @@ public class Spider : ISpider
     private async Task<List<Job>> CreateJobsForPagesWithPagination(
         Job job,
         LinkPathSelector currentSelector,
-        Uri baseUrl, string doc,
-        CancellationToken cancellationToken)
+        Uri baseUrl,
+        string doc,
+        CancellationToken cancellationToken
+    )
     {
         ArgumentNullException.ThrowIfNull(currentSelector.PaginationSelector);
 
-        var rawPaginatedLinks = await LinkParser.GetLinksAsync(baseUrl, doc, currentSelector.PaginationSelector);
+        var rawPaginatedLinks = await LinkParser.GetLinksAsync(
+            baseUrl,
+            doc,
+            currentSelector.PaginationSelector
+        );
 
         Logger.LogInformation("Found {Pages} with pagination", rawPaginatedLinks.Count);
 
         if (!rawPaginatedLinks.Any())
-            Logger.LogInformation("No pages with pagination found with selector {Selector} on {Url}",
-                currentSelector.PaginationSelector, job.Url);
+            Logger.LogInformation(
+                "No pages with pagination found with selector {Selector} on {Url}",
+                currentSelector.PaginationSelector,
+                job.Url
+            );
 
         var linksToPaginatedPages = await LinkTracker.GetNotVisitedLinks(rawPaginatedLinks);
 
-        var nextJobs = CreateNextJobs(job, currentSelector, job.LinkPathSelectors, linksToPaginatedPages,
-            cancellationToken);
+        var nextJobs = CreateNextJobs(
+            job,
+            currentSelector,
+            job.LinkPathSelectors,
+            linksToPaginatedPages,
+            cancellationToken
+        );
         return nextJobs;
     }
 
@@ -186,18 +217,21 @@ public class Spider : ISpider
         LinkPathSelector currentSelector,
         ImmutableQueue<LinkPathSelector> selectors,
         IEnumerable<string> links,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default
+    )
     {
         return links
             .TakeWhile(_ => !cancellationToken.IsCancellationRequested)
-            .Select(link => job with
-            {
-                Url = link,
-                LinkPathSelectors = selectors,
-                ParentBacklinks = job.ParentBacklinks.Enqueue(job.Url),
-                PageType = currentSelector.PageType,
-                PageActions = currentSelector.PageActions
-            })
+            .Select(link =>
+                job with
+                {
+                    Url = link,
+                    LinkPathSelectors = selectors,
+                    ParentBacklinks = job.ParentBacklinks.Enqueue(job.Url),
+                    PageType = currentSelector.PageType,
+                    PageActions = currentSelector.PageActions,
+                }
+            )
             .ToList();
     }
 }
