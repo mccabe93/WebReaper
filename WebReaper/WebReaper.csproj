@@ -18,7 +18,7 @@
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <PackageTags>scraper, crawler, parser</PackageTags>
     <PackageLicenseExpression>GPL-3.0-or-later</PackageLicenseExpression>
-    <Version>3.5.5-DynamicEngine</Version>
+    <Version>3.5.6-DynamicEngine</Version>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <DocumentationFile>$(MSBuildProjectDirectory)\API.xml</DocumentationFile>
     <LangVersion>12</LangVersion>
@@ -54,7 +54,6 @@
     <PackageReference Include="StackExchange.Redis" Version="2.10.1" />
     <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.0" />
     <PackageReference Include="Azure.Messaging.ServiceBus" Version="7.20.1" />
-    <PackageReference Include="TickerQ" Version="10.0.1" />
   </ItemGroup>
   <ItemGroup>
     <None Include="..\README.md">
