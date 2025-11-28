@@ -27,4 +27,11 @@ public class InMemoryScheduler : IScheduler
         foreach (var job in jobs)
             await _jobChannel.Writer.WriteAsync(job, cancellationToken);
     }
+
+    public async Task<bool> HasScheduledJobsAsync(CancellationToken cancellationToken = default)
+    {
+        var hasJobs =
+            !_jobChannel.Reader.Completion.IsCompleted && !_jobChannel.Reader.Count.Equals(0);
+        return await Task.FromResult(hasJobs);
+    }
 }
